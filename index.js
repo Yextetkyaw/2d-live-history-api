@@ -2,7 +2,6 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 module.exports = async (req, res) => {
-    // CORS Header များ သတ်မှတ်ခြင်း (ဘယ် App ကမဆို လှမ်းခေါ်လို့ရအောင်)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.setHeader('Content-Type', 'application/json');
@@ -12,10 +11,15 @@ module.exports = async (req, res) => {
     let set = "-";
     let value = "-";
     let twod = "-";
+    let dataSource = "unknown"; // ဒေတာဘယ်ကရလဲ သိစေမယ့် variable
+
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    };
 
     // --- ၁။ Time API ကနေ ဒေတာဆွဲခြင်း ---
     try {
-        const timeResponse = await axios.get('https://time-api-42d.vercel.app/api/time', { timeout: 5000 });
+        const timeResponse = await axios.get('https://time-api-42d.vercel.app/api/time', { timeout: 4000 });
         if (timeResponse.status === 200) {
             timeData = {
                 datetime: timeResponse.data.formatted_datetime,
@@ -23,63 +27,94 @@ module.exports = async (req, res) => {
                 time: timeResponse.data.time
             };
         }
-    } catch (error) {
-        // Time API အဆင်မပြေရင် နောက်တစ်ဆင့်ကို ဆက်သွားမယ်
-    }
+    } catch (e) {}
 
-    // --- ၂။ SET Website ကနေ ဒေတာဆွဲခြင်း ---
+    // --- ၂။ နည်းလမ်း (က) - မူလ SET Home Page ကနေ ဒေတာဆွဲခြင်း ---
+    let success = false;
     try {
-        const setUrl = 'https://www.set.or.th/en/home';
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        };
-
-        const response = await axios.get(setUrl, { headers, timeout: 10000 });
+        const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
         const $ = cheerio.load(response.data);
 
-        // Market Status ရှာဖွေခြင်း
-        // "Market Status" ပါဝင်သော စာသားကို ရှာဖွေသည်
-        $('*').each((index, element) => {
-            const text = $(element).text();
-            if (text.includes("Market Status")) {
-                if (text.includes("Open")) marketStatus = "Open";
-                if (text.includes("Closed")) marketStatus = "Closed";
-                return false; // loop ကို ရပ်ရန်
-            }
-        });
-
-        // Table Rows ထဲက SET ကို ရှာဖွေခြင်း
-        $('tr').each((index, element) => {
-            const indexTd = $(element).find('td.title-symbol');
-            if (indexTd.length > 0 && indexTd.text().trim() === 'SET') {
-                const tds = $(element).find('td');
-                if (tds.length >= 5) {
-                    set = $(tds[1]).text().trim();
-                    value = $(tds[4]).text().trim();
-
-                    // --- ၃။ 2D တွက်ချက်ခြင်း စနစ် ---
-                    const setLastDigit = set.slice(-1); // set ရဲ့ နောက်ဆုံးလုံး
-                    let valueBeforeDecimalDigit = "-";
-
-                    if (value.includes('.')) {
-                        const decimalIndex = value.indexOf('.');
-                        valueBeforeDecimalDigit = value.charAt(decimalIndex - 1); // ဒဿမရှေ့က တစ်လုံး
-                    } else {
-                        valueBeforeDecimalDigit = value.slice(-1);
-                    }
-
-                    twod = setLastDigit + valueBeforeDecimalDigit;
-                    return false; // loop ကို ရပ်ရန်
+        // Home Page ရဲ့ Market Status ကို ယူခြင်း
+        $('div.text-black').each((i, el) => {
+            const divText = $(el).text();
+            if (divText.includes("Market Status")) {
+                const spanText = $(el).find('span').text().trim();
+                if (spanText) {
+                    marketStatus = spanText;
+                    return false;
                 }
             }
         });
 
-    } catch (error) {
-        // Website ဆွဲရက် အဆင်မပြေပါက Default (-) ပြန်မည်
+        // Table rows ထဲက SET Index ဒေတာ ရှာဖွေခြင်း
+        $('tr').each((i, el) => {
+            const indexTd = $(el).find('td.title-symbol');
+            if (indexTd.length > 0 && indexTd.text().trim() === 'SET') {
+                const tds = $(el).find('td');
+                if (tds.length >= 5) {
+                    set = $(tds[1]).text().trim();
+                    value = $(tds[4]).text().trim();
+                    success = true;
+                    dataSource = "home page"; // Home Page ကရရင် တန်ဖိုးသတ်မှတ်မယ်
+                    return false;
+                }
+            }
+        });
+    } catch (e) {
+        success = false;
     }
 
-    // --- ၄။ ရလဒ်ကို JSON အဖြစ် ပြန်လည်ပေးပို့ခြင်း ---
+    // --- ၃။ နည်းလမ်း (ခ) - မရခဲ့လျှင် Overview Page ကနေ Backup ဆွဲခြင်း ---
+    if (!success || set === "-" || value === "-") {
+        try {
+            const backupUrl = 'https://www.set.or.th/en/market/index/set/overview';
+            const response = await axios.get(backupUrl, { headers, timeout: 6000 });
+            const $ = cheerio.load(response.data);
+
+            // SET Value ကို ယူခြင်း
+            const setBox = $('.stock-info, .value.stock-info');
+            if (setBox.length > 0) {
+                set = setBox.first().text().trim();
+            }
+
+            // Status ကို ယူခြင်း
+            const statusSpan = $('.quote-market-status span');
+            if (statusSpan.length > 0) {
+                marketStatus = statusSpan.first().text().trim();
+            }
+
+            // Value (M.Baht) ကို ယူခြင်း
+            const valueSpan = $('.quote-market-cost span');
+            if (valueSpan.length > 0) {
+                value = valueSpan.text().trim();
+            }
+
+            if (set !== "-" && value !== "-") {
+                dataSource = "set overview"; // Overview Page ကရရင် တန်ဖိုးသတ်မှတ်မယ်
+            }
+        } catch (e) {
+            dataSource = "failed"; // နှစ်ခုလုံးဆွဲမရရင် failed ဖြစ်မယ်
+        }
+    }
+
+    // --- ၄။ 2D ဂဏန်း တွက်ချက်ခြင်း စနစ် ---
+    if (set !== "-" && value !== "-") {
+        const setLastDigit = set.slice(-1);
+        let valueBeforeDecimalDigit = "-";
+
+        if (value.includes('.')) {
+            const decimalIndex = value.indexOf('.');
+            valueBeforeDecimalDigit = value.charAt(decimalIndex - 1);
+        } else {
+            valueBeforeDecimalDigit = value.slice(-1);
+        }
+        twod = setLastDigit + valueBeforeDecimalDigit;
+    }
+
+    // --- ၅။ ရလဒ်ကို ပေးပို့ခြင်း ---
     return res.status(200).json({
+        data_from: dataSource, // ဘယ်လင့်ခ်ကနေ ဒေတာရလဲဆိုတာ ပြပေးမယ့် Key အသစ်
         status: marketStatus,
         set: set,
         value: value,
