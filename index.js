@@ -122,15 +122,16 @@ module.exports = async (req, res) => {
         value = "--";
         twod = "--";
     }
-    // ရလဒ်ကို ပေးပို့ခြင်း
+    // ရလဒ်ကို Live Object အဖြစ် ပေးပို့ခြင်း
     return res.status(200).json({
-        data_source: dataSource, // ဘယ်လင့်ခ်ကနေ ဒေတာရလဲဆိုတာ ပြပေးမယ့် key
-        status: marketStatus,
-        set: set,
-        value: value,
-        "2d": twod,
-        datetime: timeData.datetime,
-        date: timeData.date,
-        time: timeData.time
+        live: {
+            data_source: dataSource,
+            status: marketStatus,
+            set: set,
+            value: value,
+            "2d": twod,
+            datetime: timeData.datetime,
+            date: timeData.date,
+            time: timeData.time
+        }
     });
-};
