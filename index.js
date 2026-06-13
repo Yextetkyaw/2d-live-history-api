@@ -98,18 +98,23 @@ module.exports = async (req, res) => {
         }
     }
 
-    // 2D ဂဏန်း တွက်ချက်ခြင်း စနစ်
-    if (set !== "-" && value !== "-") {
-        const setLastDigit = set.slice(-1);
+        // 2D ဂဏန်း တွက်ချက်ခြင်း
+    if (set !== "-") {
+        const setLastDigit = set.slice(-1); // SET ရဲ့ နောက်ဆုံးလုံးကို ယူတယ်
         let valueBeforeDecimalDigit = "-";
 
-        if (value.includes('.')) {
+        // Value က "-" မဟုတ်ဘဲ ဒဿမပါဝင်နေတယ်ဆိုရင် ဒဿမရှေ့က တစ်လုံးကို ယူမယ်
+        if (value !== "-" && value.includes('.')) {
             const decimalIndex = value.indexOf('.');
             valueBeforeDecimalDigit = value.charAt(decimalIndex - 1);
-        } else {
-            valueBeforeDecimalDigit = value.slice(-1);
         }
-        twod = setLastDigit + valueBeforeDecimalDigit;
+
+        // Value က "-" ဖြစ်နေသေးရင် 2D ရဲ့ ဒုတိယလုံးကို "-" လို့ပြမယ်
+        if (value === "-") {
+            twod = setLastDigit + "-"; // ဥပမာ - "1-"
+        } else {
+            twod = setLastDigit + valueBeforeDecimalDigit; // ဒေတာစုံရင် "11"
+        }
     }
 
     // ရလဒ်ကို ပေးပို့ခြင်း
