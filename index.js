@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
     let marketStatus = "null";
     let set = "-";
     let value = "-";
-    let twod = "-";
+    let twod = "null";
     let dataSource = "unknown";
 
     const headers = {
