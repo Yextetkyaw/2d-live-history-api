@@ -112,7 +112,14 @@ module.exports = async (req, res) => {
 
     // ၅။ Redis ကိုသုံးပြီး History စီမံခန့်ခွဲခြင်း လုပ်ငန်းစဉ်
     try {
-        const latestHistory = await redis.lindex('2d_history_list', 0);
+        let latestHistory = await redis.lindex('2d_history_list', 0);
+
+        // [ပြင်ဆင်ချက်] မနက်ဖြန်ရက်အသစ်ရောက်ရင် စာရင်းဟောင်းရော၊ ID Counter ပါ နှစ်ခုလုံးကို ဖျက်ပစ်ခြင်း
+        if (timeData.date && latestHistory && latestHistory.date !== timeData.date) {
+            await redis.del('2d_history_list'); // ဒေတာစာရင်းဟောင်းကိုဖျက်သည်
+            await redis.del('next_history_id'); // ID မှတ်ထားတဲ့ကောင်ကိုပါ ဖျက်လိုက်သဖြင့် ၁ ကနေ ပြန်စပါမည်
+            latestHistory = null;
+        }
 
         if (twod && twod !== "null" && twod !== "--" && twod !== "-") {
             let isDataChanged = true;
@@ -124,7 +131,6 @@ module.exports = async (req, res) => {
             if (isDataChanged) {
                 const nextHistoryId = await redis.incr('next_history_id');
 
-                // history_id ကို အောက်ဆုံးသို့ ရွှေ့လိုက်ပါသည်
                 const newHistoryItem = {
                     set: set,
                     value: value,
@@ -143,10 +149,17 @@ module.exports = async (req, res) => {
         historyList = await redis.lrange('2d_history_list', 0, 49);
         hasHistory = historyList.length > 0;
 
-        // ၆။ Noon Result နှင့် Evening Result အတွက် အချိန်စစ်ဆေးပြီး သိမ်းဆည်းခြင်း လုပ်ငန်းစဉ်
-        if (timeData.date && latestHistory && latestHistory.date !== timeData.date) {
-            await redis.del('noon_result');
-            await redis.del('evening_result');
+        // ၆။ Noon Result နှင့် Evening Result ကို Status မူတည်ပြီး စစ်ဆေးဖျက်ဆီးခြင်း
+        if (marketStatus !== "Closed") {
+            const storedNoon = await redis.get('noon_result');
+            if (storedNoon && timeData.date && storedNoon.date !== timeData.date) {
+                await redis.del('noon_result');
+            }
+
+            const storedEvening = await redis.get('evening_result');
+            if (storedEvening && timeData.date && storedEvening.date !== timeData.date) {
+                await redis.del('evening_result');
+            }
         }
 
         noon_result = await redis.get('noon_result');
