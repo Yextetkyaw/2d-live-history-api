@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
     let hasHistory = false;
     let historyList = [];
     
-    // ၁။ ဒေတာ မရှိသေးတဲ့အချိန် (null ဖြစ်နေချိန်) မှာ ပြသမည့် Default ပုံစံ
+    // ဒေတာ မရှိသေးတဲ့အချိန် (null ဖြစ်နေချိန်) မှာ ပြသမည့် Default ပုံစံ
     const defaultResult = {
         set: "--",
         value: "--",
@@ -138,8 +138,11 @@ module.exports = async (req, res) => {
             latestHistory = null;
         }
 
-        // ဒေတာအသစ်သွင်းခြင်း
-        if (twod && twod !== "null" && twod !== "--" && twod !== "-") {
+        // 🌟 [ပြင်ဆင်ချက်] Value ထဲမှာ ဒဿမအမှတ် (.) ကျိန်းသေပါဝင်ပြီး '-' မဟုတ်မှသာ ဒေတာမှန်ကန်ကြောင်း စစ်ဆေးခြင်း
+        const isValidValue = value !== "-" && value !== "--" && value.includes('.');
+
+        // ဒေတာအသစ်သွင်းခြင်း (Value ဒေတာ စိတ်ချရမှုရှိမှသာ သွင်းမည်)
+        if (twod && twod !== "null" && twod !== "--" && twod !== "-" && isValidValue) {
             let isDataChanged = true;
 
             if (latestHistory) {
@@ -211,7 +214,7 @@ module.exports = async (req, res) => {
         hasHistory = false;
     }
 
-    // 🌟 [သင်ဖြစ်ချင်သည့်အချက်] - ဒေတာ null ဖြစ်နေရင် defaultResult (-- ပုံစံ) ကို လမ်းကြောင်းလွှဲပြီး အစားထိုးခြင်း
+    // ဒေတာ null ဖြစ်နေရင် defaultResult (-- ပုံစံ) ကို လမ်းကြောင်းလွှဲပြီး အစားထိုးခြင်း
     const finalNoonResult = (noon_result && noon_result.set) ? noon_result : defaultResult;
     const finalEveningResult = (evening_result && evening_result.set) ? evening_result : defaultResult;
 
@@ -227,8 +230,8 @@ module.exports = async (req, res) => {
             date: timeData.date,
             time: timeData.time
         },
-        noon_result: finalNoonResult,       // <--- စစ်ဆေးပြီးသား နိုင်ငံ့ဂုဏ်ဆောင် ကောင်လေးကို သုံးထားပါတယ်
-        evening_result: finalEveningResult, // <--- စစ်ဆေးပြီးသား နိုင်ငံ့ဂုဏ်ဆောင် ကောင်လေးကို သုံးထားပါတယ်
+        noon_result: finalNoonResult,
+        evening_result: finalEveningResult,
         hasHistory: hasHistory,
         historyList: historyList
     });
