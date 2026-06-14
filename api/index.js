@@ -1,5 +1,12 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { Redis } = require('@upstash/redis');
+
+// Vercel Integration က ဆောက်ပေးလိုက်တဲ့ KV_REST_API_URL နှင့် KV_REST_API_TOKEN ကို သုံးပြီး ချိတ်ဆက်ခြင်း
+const redis = new Redis({
+    url: process.env.KV_REST_API_URL,
+    token: process.env.KV_REST_API_TOKEN,
+});
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,6 +19,9 @@ module.exports = async (req, res) => {
     let value = "-";
     let twod = "null";
     let dataSource = "unknown";
+
+    let hasHistory = false;
+    let historyList = [];
 
     const headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -29,7 +39,7 @@ module.exports = async (req, res) => {
         }
     } catch (e) {}
 
-        // ၂။ SET Home Page မှ ဒေတာဆွဲခြင်း
+    // ၂။ SET Home Page မှ ဒေတာဆွဲခြင်း
     let success = false;
     try {
         const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
@@ -97,6 +107,52 @@ module.exports = async (req, res) => {
         set = "--"; value = "--"; twod = "--";
     }
 
+    // ၅။ Redis ကိုသုံးပြီး History စီမံခန့်ခွဲခြင်း လုပ်ငန်းစဉ်
+    try {
+        // Redis List ထဲက နောက်ဆုံးထည့်ထားတဲ့ (အပေါ်ဆုံး) ဒေတာကို လှမ်းဖတ်တယ်
+        const latestHistory = await redis.lindex('2d_history_list', 0);
+
+        if (twod && twod !== "null" && twod !== "--" && twod !== "-") {
+            let isDataChanged = true;
+
+            if (latestHistory) {
+                // ဒေတာအဟောင်း ရှိခဲ့ရင် အသစ်နဲ့ ကိုက်ညီမှု ရှိမရှိ စစ်တယ်
+                isDataChanged = latestHistory["2d"] !== twod || latestHistory["set"] !== set;
+            }
+
+            if (isDataChanged) {
+                // 1 စီတိုးမယ့် History ID ကို Redis မှာ Auto Increment (`incr`) လုပ်ပြီး ယူတယ်
+                const nextHistoryId = await redis.incr('next_history_id');
+
+                const newHistoryItem = {
+                    history_id: nextHistoryId,
+                    set: set,
+                    value: value,
+                    "2d": twod,
+                    datetime: timeData.datetime,
+                    date: timeData.date,
+                    time: timeData.time
+                };
+
+                // ဒေတာအသစ်ကို List ရဲ့ အရှေ့ဆုံး (အပေါ်ဆုံး) ကို ထည့်တယ် (LPUSH)
+                await redis.lpush('2d_history_list', newHistoryItem);
+
+                // ဒေတာ အရေအတွက် အခု ၅၀ ပဲ ရှိနေစေဖို့ အောက်ကပိုနေတာတွေကို ဖြတ်ထုတ်တယ် (LTRIM)
+                await redis.ltrim('2d_history_list', 0, 49);
+            }
+        }
+
+        // Response ပြန်ဖို့အတွက် Redis ကနေ List တစ်ခုလုံး (0 ကနေ 49 ထိ) ကို ပြန်ခေါ်တယ်
+        historyList = await redis.lrange('2d_history_list', 0, 49);
+        hasHistory = historyList.length > 0;
+
+    } catch (redisError) {
+        console.error("Redis Error:", redisError);
+        // Redis Error တက်ခဲ့ရင် API Crash မဖြစ်အောင် ဖမ်းထားပြီး ဒေတာအလွတ် ပြန်ပေးမယ်
+        historyList = [];
+        hasHistory = false;
+    }
+
     return res.status(200).json({
         live: {
             data_source: dataSource,
@@ -107,6 +163,8 @@ module.exports = async (req, res) => {
             datetime: timeData.datetime,
             date: timeData.date,
             time: timeData.time
-        }
+        },
+        hasHistory: hasHistory,
+        historyList: historyList
     });
 };
