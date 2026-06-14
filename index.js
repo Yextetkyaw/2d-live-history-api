@@ -1,6 +1,8 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-// const db = require('./db'); // သင်၏ Database Client ကို ဤနေရာတွင် Import လုပ်ပါ
+const { Redis } = require('@upstash/redis');
+
+const redis = Redis.fromEnv(); 
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,7 +16,6 @@ module.exports = async (req, res) => {
     let twod = "null";
     let dataSource = "unknown";
     
-    // Default အနေနဲ့ "--" ဟု သတ်မှတ်ထားမည်
     let noonResult = "--";
     let eveningResult = "--";
 
@@ -32,60 +33,13 @@ module.exports = async (req, res) => {
                 time: timeResponse.data.time
             };
         }
-    } catch (e) {}
-
-    const todayDate = timeData.date; // ယနေ့ရက်စွဲ (ဥပမာ- "2026-06-14")
-
-    // ၂။ DATABASE မှ လက်ရှိနေ့ရက်အတွက် ဒေတာ ရှိမရှိ အရင်စစ်ဆေးခြင်း
-    try {
-        if (todayDate) {
-            // ဥပမာ - db.findOne({ date: todayDate }) ဟု ရှာဖွေခြင်း
-            const savedData = await db.get2DResultByDate(todayDate); 
-            if (savedData) {
-                noonResult = savedData.noon_result || "--";
-                eveningResult = savedData.evening_result || "--";
-            }
-        }
     } catch (e) {
-        console.log("Database read error:", e);
+        console.error("Time API Error:", e.message);
     }
 
-    // ၃။ 2D History API ကနေ ဒေတာဆွဲယူပြီး စစ်ဆေးခြင်း
-    try {
-        const historyResponse = await axios.get('https://2d-history-api-six.vercel.app/', { timeout: 4000 });
-        if (historyResponse.status === 200 && historyResponse.data) {
-            
-            const apiNoonData = historyResponse.data.noon_record_data;
-            const apiEveningData = historyResponse.data.evening_record_data;
+    const todayDate = timeData.date; // ယနေ့ရက်စွဲ (ဥပမာ - "2026-06-14")
 
-            let needToSaveDB = false;
-            let updatePayload = {};
-
-            // Noon အတွက် စစ်ဆေးချက်
-            if (noonResult === "--" && apiNoonData !== null && apiNoonData !== undefined) {
-                noonResult = apiNoonData;
-                updatePayload.noon_result = apiNoonData;
-                needToSaveDB = true;
-            }
-
-            // Evening အတွက် စစ်ဆေးချက်
-            if (eveningResult === "--" && apiEveningData !== null && apiEveningData !== undefined) {
-                eveningResult = apiEveningData;
-                updatePayload.evening_result = apiEveningData;
-                needToSaveDB = true;
-            }
-
-            // အကယ်၍ ဒေတာအသစ်ရလာလို့ DB ထဲသိမ်းဖို့ လိုအပ်လာလျှင်
-            if (needToSaveDB && todayDate) {
-                // ဥပမာ - db.updateOne({ date: todayDate }, { $set: updatePayload }, { upsert: true })
-                await db.saveOrUpdate2DResult(todayDate, updatePayload);
-            }
-        }
-    } catch (e) {
-        console.log("API Fetch or DB Write Error:", e);
-    }
-
-    // ၄။ နည်းလမ်း (၁) - မူလ Home Page ကနေ ဒေတာဆွဲခြင်း
+    // ၂။ နည်းလမ်း (၁) - မူလ Home Page ကနေ Market Status ကို အရင်ဆွဲခြင်း (Reset Logic အတွက် လိုအပ်လို့ပါ)
     let success = false;
     try {
         const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
@@ -119,7 +73,7 @@ module.exports = async (req, res) => {
         success = false;
     }
 
-    // နည်းလမ်း (၂) - ၁ မရခဲ့လျှင် Overview Page ကနေ Backup ဆွဲခြင်း
+    // နည်းလမ်း (၂) - Backup အနေနဲ့ Overview Page ကနေ Status ဆွဲခြင်း
     if (!success || set === "-" || value === "-") {
         try {
             const backupUrl = 'https://www.set.or.th/en/market/index/set/overview';
@@ -141,7 +95,68 @@ module.exports = async (req, res) => {
         }
     }
 
-    // 2D ဂဏန်း တွက်ချက်ခြင်း
+    // ၃။ Database ဒေတာ စစ်ဆေးခြင်းနှင့် အလိုအလျောက် Data Reset ချခြင်း Logic
+    if (todayDate) {
+        try {
+            const savedData = await redis.get(`result:${todayDate}`);
+            
+            // မနက် ၉ နာရီထိုးပြီး ဈေးကွက်ပွင့်သွားပြီ (Closed မဟုတ်တော့ဘူး) ဆိုလျှင် ဒေတာဟောင်းကို Reset ချမည်
+            if (marketStatus !== "Closed" && marketStatus !== "null") {
+                // Database ထဲမှာ ဒေတာဟောင်း ရှိနေခဲ့ရင် ဖျက်ပစ်လိုက်ပါမယ်
+                if (savedData) {
+                    await redis.del(`result:${todayDate}`);
+                }
+                noonResult = "--";
+                eveningResult = "--";
+            } else {
+                // ဈေးကွက်မပွင့်သေးဘူး (Closed ဖြစ်နေတုန်း) ဆိုရင်တော့ Database ထဲက ဒေတာအတိုင်း ပြပေးထားမယ်
+                if (savedData) {
+                    noonResult = savedData.noon_result || "--";
+                    eveningResult = savedData.evening_result || "--";
+                }
+            }
+        } catch (e) {
+            console.error("Upstash Redis Read/Reset Error:", e.message);
+        }
+    }
+
+    // ၄။ 2D History API ကနေ ဒေတာသစ် တက်မတက် စစ်ဆေးပြီး သိမ်းဆည်းခြင်း
+    // (Market Status က Open ဖြစ်နေမှသာ ဒေတာသစ်ကို စစ်ပြီး သိမ်းဖို့ လိုအပ်ပါတယ်)
+    if (marketStatus !== "Closed" && marketStatus !== "null") {
+        try {
+            const historyResponse = await axios.get('https://2d-history-api-six.vercel.app/', { timeout: 4000 });
+            if (historyResponse.status === 200 && historyResponse.data) {
+                
+                const apiNoonData = historyResponse.data.noon_record_data;
+                const apiEveningData = historyResponse.data.evening_record_data;
+
+                let needToUpdate = false;
+
+                // Noon ဒေတာအသစ် တက်လာရင် သိမ်းမယ်
+                if (noonResult === "--" && apiNoonData !== null && apiNoonData !== undefined) {
+                    noonResult = apiNoonData;
+                    needToUpdate = true;
+                }
+
+                // Evening ဒေတာအသစ် တက်လာရင် သိမ်းမယ်
+                if (eveningResult === "--" && apiEveningData !== null && apiEveningData !== undefined) {
+                    eveningResult = apiEveningData;
+                    needToUpdate = true;
+                }
+
+                if (needToUpdate && todayDate) {
+                    await redis.set(`result:${todayDate}`, {
+                        noon_result: noonResult,
+                        evening_result: eveningResult
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("API Fetch or Upstash Write Error:", e.message);
+        }
+    }
+
+    // ၅။ 2D ဂဏန်း တွက်ချက်ခြင်း
     if (set !== "-") {
         const setLastDigit = set.slice(-1);
         let valueBeforeDecimalDigit = "-";
