@@ -50,6 +50,7 @@ module.exports = async (req, res) => {
                 if (tds.length >= 5) {
                     set = $(tds[1]).text().trim();
                     value = $(tds[4]).text().trim();
+                    dataSource = "home Page";
                     success = true;
                     return false;
                 }
@@ -72,6 +73,7 @@ module.exports = async (req, res) => {
 
             const valueSpan = $('.quote-market-cost span');
             if (valueSpan.length > 0) value = valueSpan.text().trim();
+            dataSource = "set overview";
         } catch (e) {}
     }
 
