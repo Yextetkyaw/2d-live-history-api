@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
-    // Time API ကနေ ဒေတာဆွဲခြင်း
+    // ၁။ Time API ကနေ ဒေတာဆွဲခြင်း
     try {
         const timeResponse = await axios.get('https://time-api-42d.vercel.app/api/time', { timeout: 4000 });
         if (timeResponse.status === 200) {
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
         }
     } catch (e) {}
 
-    // LIVE SET ဒေတာဆွဲခြင်း (အသုံးပြုသူများ ဝင်ကြည့်ချိန် Live ပြသရန်သာ)
+        // ၂။ SET Home Page မှ ဒေတာဆွဲခြင်း
     let success = false;
     try {
         const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
@@ -51,39 +51,46 @@ module.exports = async (req, res) => {
                     set = $(tds[1]).text().trim();
                     value = $(tds[4]).text().trim();
                     success = true;
-                    dataSource = "home page";
                     return false;
                 }
             }
         });
     } catch (e) { success = false; }
 
+    // ၃။ Backup အဖြစ် Overview Page မှ ဆွဲခြင်း
     if (!success || set === "-" || value === "-") {
         try {
             const backupUrl = 'https://www.set.or.th/en/market/index/set/overview';
             const response = await axios.get(backupUrl, { headers, timeout: 6000 });
             const $ = cheerio.load(response.data);
+
             const setBox = $('.stock-info, .value.stock-info');
-            if (setBox.length > 0) { set = setBox.first().text().trim(); }
+            if (setBox.length > 0) set = setBox.first().text().trim();
+
             const statusSpan = $('.quote-market-status span');
-            if (statusSpan.length > 0) { marketStatus = statusSpan.first().text().trim(); }
+            if (statusSpan.length > 0) marketStatus = statusSpan.first().text().trim();
+
             const valueSpan = $('.quote-market-cost span');
-            if (valueSpan.length > 0) { value = valueSpan.text().trim(); }
-            if (set !== "-" && value !== "-") { dataSource = "set overview"; }
-        } catch (e) { dataSource = "failed"; }
+            if (valueSpan.length > 0) value = valueSpan.text().trim();
+        } catch (e) {}
     }
 
+    // ၄။ 2D တွက်ချက်ခြင်း
     if (set !== "-") {
         const setLastDigit = set.slice(-1);
         let valueBeforeDecimalDigit = "-";
+
         if (value !== "-" && value.includes('.')) {
             const decimalIndex = value.indexOf('.');
             valueBeforeDecimalDigit = value.charAt(decimalIndex - 1);
         }
-        if (value === "-") { twod = setLastDigit + "-"; } 
-        else { twod = setLastDigit + valueBeforeDecimalDigit; }
-    }
 
+        if (value === "-") {
+            twod = setLastDigit + "-";
+        } else {
+            twod = setLastDigit + valueBeforeDecimalDigit;
+        }
+    }
     if (marketStatus === "Closed") {
         set = "--"; value = "--"; twod = "--";
     }
@@ -98,8 +105,6 @@ module.exports = async (req, res) => {
             datetime: timeData.datetime,
             date: timeData.date,
             time: timeData.time
-        },
-        noon_result: noonResult,
-        evening_result: eveningResult
+        }
     });
 };
