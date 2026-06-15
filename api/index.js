@@ -14,6 +14,9 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.setHeader('Content-Type', 'application/json');
 
+    // Response ပေးတဲ့အခါ ၅ စက္ကန့် Cache စောင့်ခိုင်းမည့် Header (ဥပမာ)
+res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate');
+    
     // Live Data အတွက် Variable များ တည်ဆောက်ခြင်း
     let timeData = { datetime: null, date: null, time: null };
     let marketStatus = "null";
