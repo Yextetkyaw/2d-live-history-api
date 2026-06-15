@@ -119,9 +119,9 @@ module.exports = async (req, res) => {
     }
     
     if (marketStatus === "Pre-Open1") {
-        if (value === "-" || !value.includes('.')) {
-            value = "-";
-        }
+        if (value.includes('-') || !value.includes('.')) {
+    value = "-";
+}
     }
     
     if (marketStatus === "Closed") {
