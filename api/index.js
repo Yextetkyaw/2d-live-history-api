@@ -227,7 +227,7 @@ module.exports = async (req, res) => {
 
         // သတ်မှတ်အချိန်အတွင်း ရောက်ပါက History ထဲမှ နေ့လယ်/ညနေ ပိတ်ဂဏန်းကို ရှာဖွေထုတ်ယူခြင်း
         const isNoonTimeRange = currentTime && currentTime >= "12:01:00" && currentTime <= "12:02:00";
-        const isEveningTimeRange = currentTime && currentTime >= "16:30:00" && currentTime <= "16:31:00";
+        const isEveningTimeRange = currentTime && currentTime >= "16:30:00" && currentTime <= "16:32:00";
 
         if (noon_result && evening_result) {
             // ဒေတာ ၂ ခုလုံး ရှိပြီးသားဖြစ်ပါက ဘာမှမလုပ်ပါ
