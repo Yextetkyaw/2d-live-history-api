@@ -1,4 +1,4 @@
-const axios = require('axios');
+Const axios = require('axios');
 const cheerio = require('cheerio');
 const { Redis } = require('@upstash/redis');
 
@@ -7,9 +7,6 @@ const redis = new Redis({
     url: process.env.KV_REST_API_URL,
     token: process.env.KV_REST_API_TOKEN,
 });
-
-// 🌟 စက္ကန့်ပိုင်း စောင့်ခိုင်းရန်အတွက် ကြားခံ Function လေး (ဖိုင်၏အပေါ်ဆုံးတွင် ထည့်သွင်းထားပါသည်)
-const delay = ms => new Promise(res => setTimeout(res, ms));
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,9 +41,7 @@ module.exports = async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
-    // ========================================================
-    // [အဆင့် ၁] Time API မှ လက်ရှိအချိန်ကို ချက်ချင်းဦးစွာဆွဲခြင်း
-    // ========================================================
+    // Time API မှ ဒေတာဆွဲခြင်း
     try {
         const timeResponse = await axios.get('https://time-api-42d.vercel.app/api/time', { timeout: 4000 });
         if (timeResponse.status === 200) {
@@ -58,92 +53,52 @@ module.exports = async (req, res) => {
         }
     } catch (e) {}
 
-    // ========================================================
-    // [အဆင့် ၂] စက္ကန့် ၂၀ မစောင့်ခင် Redis ထဲမှာ ဒေတာရှိ၊မရှိ ကြိုတင်စစ်ဆေးခြင်း
-    // ========================================================
-    let skipScraping = false;
-    try {
-        const preCheckNoon = await redis.get('noon_result');
-        const preCheckEvening = await redis.get('evening_result');
-        const currentTime = timeData.time;
-
-        // အကယ်၍ မနက်ရော ညနေရော ဒေတာအကုန်လုံး ရှိပြီးသားဖြစ်နေလျှင် (သို့မဟုတ်)
-        // ဒေတာ ရှိပြီးသားအချိန်အပိုင်းအခြားများတွင် ထိုင်းဆိုက်ကို လှမ်းဆွဲစရာမလိုဘဲ တန်းကျော်ရန်ဖြစ်သည်
-        const isNoonTimeRange = currentTime && currentTime >= "12:01:00" && currentTime <= "12:01:30";
-        const isEveningTimeRange = currentTime && currentTime >= "16:30:00" && currentTime <= "16:30:30";
-
-        if (preCheckNoon && preCheckEvening) {
-            skipScraping = true; // ဒေတာအကုန်စုံနေရင် ထိုင်းဆိုက်ဆွဲစရာမလိုတော့ပါ
-        } else if (preCheckNoon && isNoonTimeRange) {
-            skipScraping = true; // မနက်ဒေတာရှိပြီးသားဖြစ်ပြီး မနက်ပိုင်းအချိန်ဖြစ်နေလျှင် ကျော်မည်
-        } else if (preCheckEvening && isEveningTimeRange) {
-            skipScraping = true; // ညနေဒေတာရှိပြီးသားဖြစ်ပြီး ညနေပိုင်းအချိန်ဖြစ်နေလျှင် ကျော်မည်
-        }
-    } catch (redisPreCheckError) {
-        console.error("Redis Pre-check Error:", redisPreCheckError);
-    }
-
-    // ========================================================
-    // [အဆင့် ၃] Cron-Job.org မှ လာခေါ်ချိန်တွင် စက္ကန့် 15 ကွက်တိ ငြိမ်ပြီးစောင့်ဆိုင်းခြင်း
-    // ========================================================
-    console.log("[Cron Log] Waiting for 15 seconds initialization...");
-    await delay(15000); 
-    console.log("[Cron Log] 15 seconds completed. Moving forward.");
-
-    // ========================================================
-    // [အဆင့် ၄] ထိုင်း SET ဝက်ဘ်ဆိုက်များမှ ဒေတာဆွဲခြင်း (Scraping)
-    // ========================================================
+    // SET Home Page မှ ဒေတာဆွဲခြင်း
     let success = false;
+    try {
+        const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
+        const $ = cheerio.load(response.data);
 
-    // စောစောက အခြေအနေစစ်ချက်အရ ဒေတာမစုံသေးမှသာ ထိုင်းဆိုက်ကို ဒေတာလှမ်းဆွဲမည်
-    if (!skipScraping) {
+        $('div.text-black').each((i, el) => {
+            const divText = $(el).text();
+            if (divText.includes("Market Status")) {
+                const spanText = $(el).find('span').text().trim();
+                if (spanText) { marketStatus = spanText; return false; }
+            }
+        });
+
+        $('tr').each((i, el) => {
+            const indexTd = $(el).find('td.title-symbol');
+            if (indexTd.length > 0 && indexTd.text().trim() === 'SET') {
+                const tds = $(el).find('td');
+                if (tds.length >= 5) {
+                    set = $(tds[1]).text().trim();
+                    value = $(tds[4]).text().trim();
+                    dataSource = "home Page";
+                    success = true;
+                    return false;
+                }
+            }
+        });
+    } catch (e) { success = false; }
+
+    // Backup အဖြစ် Overview Page မှ ဆွဲခြင်း
+    if (!success || set === "-" || value === "-") {
         try {
-            const response = await axios.get('https://www.set.or.th/en/home', { headers, timeout: 6000 });
+            const backupUrl = 'https://www.set.or.th/en/market/index/set/overview';
+            const response = await axios.get(backupUrl, { headers, timeout: 6000 });
             const $ = cheerio.load(response.data);
 
-            $('div.text-black').each((i, el) => {
-                const divText = $(el).text();
-                if (divText.includes("Market Status")) {
-                    const spanText = $(el).find('span').text().trim();
-                    if (spanText) { marketStatus = spanText; return false; }
-                }
-            });
+            const setBox = $('.stock-info, .value.stock-info');
+            if (setBox.length > 0) set = setBox.first().text().trim();
 
-            $('tr').each((i, el) => {
-                const indexTd = $(el).find('td.title-symbol');
-                if (indexTd.length > 0 && indexTd.text().trim() === 'SET') {
-                    const tds = $(el).find('td');
-                    if (tds.length >= 5) {
-                        set = $(tds[1]).text().trim();
-                        value = $(tds[4]).text().trim();
-                        dataSource = "home Page";
-                        success = true;
-                        return false;
-                    }
-                }
-            });
-        } catch (e) { success = false; }
+            const statusSpan = $('.quote-market-status span');
+            if (statusSpan.length > 0) marketStatus = statusSpan.first().text().trim();
 
-        // Backup အဖြစ် Overview Page မှ ဆွဲခြင်း
-        if (!success || set === "-" || value === "-") {
-            try {
-                const backupUrl = 'https://www.set.or.th/en/market/index/set/overview';
-                const response = await axios.get(backupUrl, { headers, timeout: 6000 });
-                const $ = cheerio.load(response.data);
-
-                const setBox = $('.stock-info, .value.stock-info');
-                if (setBox.length > 0) set = setBox.first().text().trim();
-
-                const statusSpan = $('.quote-market-status span');
-                if (statusSpan.length > 0) marketStatus = statusSpan.first().text().trim();
-
-                const valueSpan = $('.quote-market-cost span');
-                if (valueSpan.length > 0) value = valueSpan.text().trim();
-                dataSource = "set overview";
-            } catch (e) {}
-        }
-    } else {
-        dataSource = "Skipped scraping (Data already exists)";
+            const valueSpan = $('.quote-market-cost span');
+            if (valueSpan.length > 0) value = valueSpan.text().trim();
+            dataSource = "set overview";
+        } catch (e) {}
     }
 
     // 2D တွက်ချက်ခြင်း
@@ -166,9 +121,7 @@ module.exports = async (req, res) => {
         set = "--"; value = "--"; twod = "--";
     }
 
-    // ========================================================
-    // [အဆင့် ၅] Redis History စီမံခန့်ခွဲခြင်းနှင့် သိမ်းဆည်းခြင်း လုပ်ငန်းစဉ်
-    // ========================================================
+    // Redis History စီမံခန့်ခွဲခြင်း လုပ်ငန်းစဉ်
     try {
         let latestHistory = await redis.lindex('2d_history_list', 0);
         const hasHistoryInDb = await redis.exists('2d_history_list');
@@ -235,13 +188,15 @@ module.exports = async (req, res) => {
 
         const currentTime = timeData.time;
 
-        // လက်ရှိအချိန်နှင့် ဒေတာရှိမရှိ အခြေအနေကို ချိန်ကိုက်စစ်ဆေးခြင်း
-        const isNoonTimeRange = currentTime && currentTime >= "12:01:00" && currentTime <= "12:01:30";
-        const isEveningTimeRange = currentTime && currentTime >= "16:30:00" && currentTime <= "16:30:30";
+        // 🌟 [ပြင်ဆင်ချက်အသစ်] - လက်ရှိအချိန်နှင့် ဒေတာရှိမရှိ အရင်ဆုံး ချိန်ကိုက်စစ်ဆေးခြင်း
+        const isNoonTimeRange = currentTime && currentTime >= "12:00:50" && currentTime <= "12:01:30";
+        const isEveningTimeRange = currentTime && currentTime >= "16:29:50" && currentTime <= "16:30:30";
 
+        // မနက်ရော ညနေရော ဒေတာရှိပြီးသားဆိုလျှင်လည်း လုံးဝ (လုံးဝ) ထပ်မစစ်တော့ပါ
         if (noon_result && evening_result) {
             // Do nothing
         } 
+        // မနက်ဒေတာမရှိသေးဘဲ မနက်ပိုင်းအချိန်အပိုင်းအခြားထဲရောက်နေလျှင် (သို့မဟုတ်) ညနေဒေတာမရှိသေးဘဲ ညနေပိုင်းအချိန်အပိုင်းအခြားထဲရောက်နေလျှင်မှသာ ရှာမည်
         else if ((!noon_result && isNoonTimeRange) || (!evening_result && isEveningTimeRange)) {
             
             for (let item of historyList) {
