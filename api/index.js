@@ -26,8 +26,8 @@ module.exports = async (req, res) => {
     let historyList = [];
     
     // Variable အသစ်များ တည်ဆောက်ခြင်း
-    let apiStatus = "No Status";
-    let ifError = "No Error";
+    let apiStatus = "null";
+    let ifError = "null";
     
     // ဒေတာ မရှိသေးသည့်အချိန် သို့မဟုတ် Null ဖြစ်နေချိန်တွင် ပြသမည့် Default ပုံစံ
     const defaultResult = {
