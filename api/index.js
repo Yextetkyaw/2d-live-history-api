@@ -141,20 +141,6 @@ module.exports = async (req, res) => {
             }
         }
     } catch (e) {}
-    
-    // [SECTION 5] MARKET STATUS CONDITIONS - အခြေအနေအလိုက် ဒေတာထိန်းညှိခြင်း
-    
-    // (က) ဈေးကွက်ပြင်ဆင်ချိန် (Pre-Open1) ဖြစ်နေစဉ် Value ထဲတွင် - ပါဝင်နေပါက သို့မဟုတ် ဒဿမမပါပါက "-" အတိုင်း ပြရန်
-    if (marketStatus && marketStatus.includes("Pre-Open1")) {
-        if (value.includes('-') || !value.includes('.')) {
-            value = "-";
-        }
-    }
-    
-    // (ခ) ဈေးကွက်ပိတ်သွားပါက (Closed) လိုက်ဗ်ဒေတာအားလုံးကို "--" သို့ ပြောင်းလဲရန်
-    if (marketStatus && marketStatus.includes("Closed")) {
-        set = "--"; value = "--"; twod = "--";
-    }
 
     // [SECTION 6] REDIS DATABASE OPERATIONS - ဒေတာဘေ့စ် သိမ်းဆည်း/ထုတ်ယူခြင်း
     try {
