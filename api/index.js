@@ -160,10 +160,10 @@ module.exports = async (req, res) => {
         }
 
         // Value ထဲတွင် ဒဿမပါဝင်ပြီး ဒေတာအမှန်ဖြစ်မှသာ ဒေတာအသစ် သွင်းမည်
-        const isValidValue = value !== "-" && value !== "--" && value.includes('.');
+        const isValidValue = !value.includes('-') && value.includes('.');
 
         // live ဒေတာ အပြောင်းအလဲရှိပါက History List ထဲသို့ အသစ်တိုးမြှင့်ထည့်သွင်းခြင်း
-        if (twod && twod !== "null" && twod !== "--" && twod !== "-" && isValidValue) {
+        if (twod && twod !== "null" && twod !== "-" && isValidValue) {
             let isDataChanged = true;
 
             if (latestHistory) {
