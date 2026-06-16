@@ -58,7 +58,7 @@ module.exports = async (req, res) => {
             };
         }
     } catch (e) {}
-
+    
     const currentTime = timeData.time; // လက်ရှိအချိန်ကို ယူတယ်
     
     // နေ့လယ် (12:00 မှ 12:02) နှင့် ညနေ (16:29 မှ 16:31) အတွင်းဖြစ်ပါက Cache မလုပ်ပါ (No Cache)
@@ -71,6 +71,25 @@ module.exports = async (req, res) => {
     } else {
         // ပုံမှန်အချိန်များတွင်မူ ဒေတာဘေ့စ်ကို ကာကွယ်ရန် ၅ စက္ကန့် Cache ဖွင့်ထားမည်
         res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate');
+    }
+
+        // [SECTION 1.5] 🌟 Holiday API ရဲ့ offDay နှင့် Time API ရဲ့ today တူမတူ တိုက်ရိုက်စစ်ဆေးခြင်း
+    try {
+        const holidayResponse = await axios.get('https://2d-holiday-api.vercel.app/api/holidays', { timeout: 4000 });
+        
+        // API နှစ်ခုလုံးဆီက Response ဒေတာတွေ သေချာရရှိမှ စစ်ဆေးမည်
+        if (holidayResponse.status === 200 && holidayResponse.data && timeResponse && timeResponse.data) {
+            
+            const holidayOffDay = holidayResponse.data.offDay; // Holiday API မှ offDay တန်ဖိုး
+            const timeToday = timeResponse.data.today;         // Time API မှ today တန်ဖိုး
+            
+            // သင်အလိုရှိသည့်အတိုင်း တန်ဖိုးနှစ်ခု ကွက်တိ တူညီနေပါက true ဟု သတ်မှတ်မည်
+            if (holidayOffDay && timeToday && holidayOffDay === timeToday) {
+                isHoliday = true;
+            }
+        }
+    } catch (e) {
+        isHoliday = false; // Holidays API ဒေါင်းနေပါက ပုံမှန်ရက်အဖြစ်ပဲ သတ်မှတ်မည်
     }
 
     // [SECTION 2] WEB SCRAPING - ထိုင်း SET Home Page မှ ဒေတာဆွဲခြင်း
