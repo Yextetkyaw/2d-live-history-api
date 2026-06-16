@@ -114,7 +114,7 @@ module.exports = async (req, res) => {
                 const tds = $(el).find('td');
                 if (tds.length >= 5) {
                     set = $(tds[1]).text().trim();
-                    timeResponseesponse = $(tds[4]).text().trim();
+                    value = $(tds[4]).text().trim();
                     dataSource = "home Page";
                     success = true;
                     return false;
