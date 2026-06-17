@@ -54,10 +54,7 @@ module.exports = async (req, res) => {
             timeData = {
                 datetime: timeResponse.data.formatted_datetime,
                 date: timeResponse.data.date,
-                time: timeResponse.data.time,
-                day_number: timeResponse.data.day,
-                month_name: timeResponse.data.month_name,
-                day_name:timeResponse.data.day_of_week
+                time: timeResponse.data.time
             };
         }
     } catch (e) {}
@@ -88,18 +85,7 @@ module.exports = async (req, res) => {
         }
 
         // ၂။ တကယ်လို့ စနေ/တနင်္ဂနွေ မဟုတ်သေးရင်တောင် ထိုင်းအထူးရုံးပိတ်ရက် ဟုတ်မဟုတ် ဆက်စစ်တယ်
-        if (!isHoliday) { 
-            const holidayResponse = await axios.get('https://2d-holiday-api.vercel.app/api/holidays', { timeout: 4000 });
-            
-            if (holidayResponse.status === 200 && holidayResponse.data && timeResponse && timeResponse.data) {
-                const holidayOffDay = holidayResponse.data.offDay;
-                const timeToday = timeResponse.data.today;
-                        
-                if (holidayOffDay && timeToday && holidayOffDay === timeToday) {
-                    isHoliday = true; // အထူးရုံးပိတ်ရက် ဖြစ်နေလျှင်လည်း ပိတ်ရက်ဟု သတ်မှတ်
-                }
-            }
-        }
+        
     } catch (e) {
         // API Error တက်ခဲ့ရင်တောင် စနေ/တနင်္ဂနွေ စစ်ချက်က အပေါ်မှာ အရင်အလုပ်လုပ်သွားလို့ စိတ်ချရပါတယ်
     }
