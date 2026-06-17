@@ -73,45 +73,47 @@ module.exports = async (req, res) => {
         res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate');
     }
 
-            // [SECTION 1.5] 🌟 Weekend (စနေ/တနင်္ဂနွေ) နှင့် Holiday API ကို တွဲဖက်စစ်ဆေးခြင်း
-    try {
-        if (timeResponse && timeResponse.data) {
-            const dayOfWeek = timeResponse.data.day_of_week; // စာသားဖြင့် လာမည် (ဥပမာ- "Friday")
+  // [SECTION 1.5] 🌟 Weekend (စနေ/တနင်္ဂနွေ) နှင့် Holiday API ကို တွဲဖက်စစ်ဆေးခြင်း
+try {
+    if (timeResponse && timeResponse.data) {
+        const dayOfWeek = timeResponse.data.day_of_week; // စာသားဖြင့် လာမည် (ဥပမာ- "Friday")
+        
+        // ၁။ ဦးဆုံး စနေ သို့မဟုတ် တနင်္ဂနွေ ဟုတ်မဟုတ် အရင်စစ်တယ်
+        if (dayOfWeek === "Saturday" || dayOfWeek === "Sunday") {
+            isHoliday = true;
+        } else {
+            // ၂။ စနေ/တနင်္ဂနွေ မဟုတ်ရင် ထိုင်းအထူးရုံးပိတ်ရက် API ကို လှမ်းခေါ်ပြီး စစ်ဆေးမယ်
+            const holidayResponse = await axios.get('https://2d-holiday-api.vercel.app/api/holidays', { headers, timeout: 4000 });
             
-            // ၁။ ဦးဆုံး စနေ သို့မဟုတ် တနင်္ဂနွေ ဟုတ်မဟုတ် အရင်စစ်တယ်
-            if (dayOfWeek === "Saturday" || dayOfWeek === "Sunday") {
-                isHoliday = true;
-            } else {
-                // ၂။ စနေ/တနင်္ဂနွေ မဟုတ်ရင် ထိုင်းအထူးရုံးပိတ်ရက် API ကို လှမ်းခေါ်ပြီး စစ်ဆေးမယ်
-                const holidayResponse = await axios.get('https://2d-holiday-api.vercel.app/api/holidays', { headers, timeout: 4000 });
+            // ပြင်ဆင်ချက်- holidayResponse.data ထဲကမှ .data (Array) ရှိမရှိကို သေချာစစ်ဆေးခြင်း
+            if (holidayResponse.status === 200 && holidayResponse.data && Array.isArray(holidayResponse.data.data)) {
+                const holidays = holidayResponse.data.data; // API Object ထဲက holidays array ကို ဆွဲထုတ်လိုက်တယ်
                 
-                if (holidayResponse.status === 200 && Array.isArray(holidayResponse.data)) {
-                    const holidays = holidayResponse.data;
-                    
-                    // Time API မှ ဒေတာများကို စာလုံးအသေး ပြောင်းခြင်း နှင့် ရှေ့က သုည (0) ဖြုတ်ခြင်း
-                    const tMonth = timeResponse.data.month_name ? timeResponse.data.month_name.toLowerCase() : "";
-                    const tDayName = dayOfWeek ? dayOfWeek.toLowerCase() : "";
-                    const tDay = timeResponse.data.day ? parseInt(timeResponse.data.day, 10) : null; // 01 ဖြစ်နေရင် 1 ပြောင်းရန်
+                // Time API မှ ဒေတာများကို စာလုံးအသေး ပြောင်းခြင်း နှင့် ရှေ့က သုည (0) ဖြုတ်ခြင်း
+                const tMonth = timeResponse.data.month_name ? timeResponse.data.month_name.toLowerCase() : "";
+                const tDayName = dayOfWeek ? dayOfWeek.toLowerCase() : "";
+                const tDay = timeResponse.data.day ? parseInt(timeResponse.data.day, 10) : null; 
 
-                    // Holiday List ထဲမှာ ကိုက်ညီတာ ရှိမရှိ Loop ပတ်စစ်ဆေးခြင်း
-                    const matchHoliday = holidays.find(h => {
-                        // Holiday API မှ ဒေတာများကို စာလုံးအသေး ပြောင်းခြင်း နှင့် ရှေ့က သုည (0) ဖြုတ်ခြင်း
-                        const hMonth = h.month ? h.month.toLowerCase() : "";
-                        const hDayName = h.day ? h.day.toLowerCase() : "";
-                        const hDay = h.date ? parseInt(h.date, 10) : null; // 01 ဖြစ်နေရင် 1 ပြောင်းရန်
+                // Holiday List ထဲမှာ ကိုက်ညီတာ ရှိမရှိ Loop ပတ်စစ်ဆေးခြင်း
+                const matchHoliday = holidays.find(h => {
+                    // Holiday API မှ ဒေတာများကို စာလုံးအသေး ပြောင်းခြင်း
+                    const hMonth = h.month ? h.month.toLowerCase() : "";
+                    const hDayName = h.day ? h.day.toLowerCase() : "";
+                    const hDay = h.date ? h.date : null; // ပြင်ဆင်ချက်- API မှာ ပေးထားတာ ကိန်းပြည့် (Number) ဖြစ်လို့ parseInt မလိုတော့ပါ
 
-                        return tMonth === hMonth && tDay === hDay && tDayName === hDayName;
-                    });
+                    return tMonth === hMonth && tDay === hDay && tDayName === hDayName;
+                });
 
-                    if (matchHoliday) {
-                        isHoliday = true; // အားလုံးကွက်တိကိုက်ညီရင် ပိတ်ရက်ဟု သတ်မှတ်
-                    }
+                if (matchHoliday) {
+                    isHoliday = true; // အားလုံးကွက်တိကိုက်ညီရင် ပိတ်ရက်ဟု သတ်မှတ်
                 }
             }
         }
-    } catch (e) {
-        // API Error တက်ခဲ့ရင်တောင် စနေ/တနင်္ဂနွေ စစ်ချက်က အပေါ်မှာ အရင်အလုပ်လုပ်သွားလို့ စိတ်ချရပါတယ်
     }
+} catch (e) {
+    // API Error တက်ခဲ့ရင်တောင် စနေ/တနင်္ဂနွေ စစ်ချက်က အပေါ်မှာ အရင်အလုပ်လုပ်သွားလို့ စိတ်ချရပါတယ်
+    console.error("Holiday API Error:", e.message); // Debug လုပ်ရလွယ်အောင် error print ထုတ်ထားပေးနိုင်ပါတယ်
+}
     
     // [SECTION 2] WEB SCRAPING - ထိုင်း SET Home Page မှ ဒေတာဆွဲခြင်း
     let success = false;
