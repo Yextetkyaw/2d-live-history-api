@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
 
     let isHoliday = false;
     let holidayName = "null";
-    let offDay = "null",
+    let offDay = "null";
     let hasHistory = false;
     let historyList = [];
     
