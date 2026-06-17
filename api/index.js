@@ -287,11 +287,12 @@ module.exports = async (req, res) => {
             status: marketStatus,
             set: set,
             value: value,
-            "2d": twod,
+            2d: twod,
             datetime: timeData.datetime,
             date: timeData.date,
             time: timeData.time
         },
+        holidayOffDay: holidayResponse.data.offDay;
         noon_result: finalNoonResult,
         evening_result: finalEveningResult,
         hasHistory: hasHistory,
