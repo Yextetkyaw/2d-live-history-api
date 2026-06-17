@@ -310,6 +310,9 @@ try {
         },
         noon_result: finalNoonResult,
         evening_result: finalEveningResult,
+        isHoliday: isHoliday,
+        holidayName: holidayName,
+        offDay: offDay,
         hasHistory: hasHistory,
         historyList: historyList
     });
