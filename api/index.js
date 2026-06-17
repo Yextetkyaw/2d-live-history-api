@@ -1,4 +1,4 @@
-c axios = require('axios');
+const axios = require('axios');
 const cheerio = require('cheerio');
 const { Redis } = require('@upstash/redis');
 
