@@ -21,8 +21,10 @@ module.exports = async (req, res) => {
     let value = "null";
     let twod = "null";
     let dataSource = "unknown";
-    let isHoliday = false;
 
+    let isHoliday = false;
+    let holidayName = "null";
+    let offDay = "null",
     let hasHistory = false;
     let historyList = [];
     
