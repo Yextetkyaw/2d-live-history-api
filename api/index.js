@@ -102,10 +102,16 @@ module.exports = async (req, res) => {
                         return tMonth === hMonth && tDay === hDay && tDayName === hDayName;
                     });
 
-                    if (matchHoliday) {
+                 if (matchHoliday) {
+                        // ၁။ အထူးရုံးပိတ်ရက် ဖြစ်ခဲ့လျှင် လုပ်ဆောင်ချက်
                         isHoliday = true; 
                         holidayName = matchHoliday.holiday_name;
                         offDay = matchHoliday.offDay; 
+                 } else {
+                        // ၂။ ပုံမှန်အလုပ်လုပ်ရက် (ရုံးပိတ်ရက် မဟုတ်လျှင်) လုပ်ဆောင်ချက်
+                        isHoliday = false; 
+                        holidayName = "Workday"; // သို့မဟုတ် ပုံမှန်နေ့မို့လို့ "Normal Workday" လို့ ပေးနိုင်ပါတယ်
+                        offDay = dayOfWeek;
                     }
                 }
             }
