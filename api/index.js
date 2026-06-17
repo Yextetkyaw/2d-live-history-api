@@ -91,7 +91,13 @@ module.exports = async (req, res) => {
             if (holidayResponse.status === 200 && holidayResponse.data && timeResponse && timeResponse.data) {
                 const holidayOffDay = holidayResponse.data.offDay;
                 const timeToday = timeResponse.data.today;
-                
+
+                // holidayOffDay ကို JSON Object တစ်ခုအနေနဲ့ သတ်မှတ်ခြင်း
+                const holidayOffDay = {
+                    is_holiday: holidayResponse.data.is_holiday || false, // API ကလာမယ့် true/false status
+                    date_list: holidayResponse.data.holidays || [],      // ပိတ်ရက်ရက်စွဲများ စာရင်း Array
+                    current_date: timeToday
+                        
                 if (holidayOffDay && timeToday && holidayOffDay === timeToday) {
                     isHoliday = true; // အထူးရုံးပိတ်ရက် ဖြစ်နေလျှင်လည်း ပိတ်ရက်ဟု သတ်မှတ်
                 }
