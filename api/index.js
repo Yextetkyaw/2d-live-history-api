@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         set: "--",
         value: "--",
         "2d": "--",
-        datetime: "--",
+        datသိမ်းဆည်းခြင်းဆည်းခြင်း: "--",
         date: "--",
         time: "--",
         history_id: "--"
@@ -269,6 +269,19 @@ module.exports = async (req, res) => {
                 if (item.time && item.time >= "12:01:00" && item.time <= "12:02:00") {
                     noon_result = item;
                     await redis.set('noon_result', JSON.stringify(noon_result)); // String ဖြင့် သိမ်းဆည်းခြင်း
+                    
+                    try {
+                await axios.post('https://2d-result-api.vercel.app/api/save-2d-result', {
+                    type: 'noon',
+                    data: noon_result
+                }, { 
+                    headers: { 'Authorization': 'Bearer MY_SECRET_KEY_123' },
+                    timeout: 4000 
+                });
+                console.log("Noon result sent successfully.");
+            } catch (err) {
+                console.error("တခြား API သို့ Noon ပို့ရန် ပျက်ကွက်မှု:", err.message);
+                    }
                     break;
                 }
             }
@@ -279,6 +292,19 @@ module.exports = async (req, res) => {
                 if (item.time && item.time >= "16:30:00" && item.time <= "16:31:00") {
                     evening_result = item;
                     await redis.set('evening_result', JSON.stringify(evening_result)); // String ဖြင့် သိမ်းဆည်းခြင်း
+                    
+                    try {
+                await axios.post('https://2d-result-api.vercel.app/api/save-2d-result', {
+                    type: 'evening',
+                    data: evening_result
+                }, { 
+                    headers: { 'Authorization': 'Bearer MY_SECRET_KEY_123' },
+                    timeout: 4000 
+                });
+                console.log("Evening result sent successfully.");
+            } catch (err) {
+                console.error("တခြား API သို့ Evening ပို့ရန် ပျက်ကွက်မှု:", err.message);
+                    }
                     break;
                 }
             }
