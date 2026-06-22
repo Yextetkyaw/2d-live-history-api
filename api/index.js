@@ -217,6 +217,13 @@ module.exports = async (req, res) => {
                 isDataChanged = latestHistory["2d"] !== twod || latestHistory["set"] !== set;
             }
 
+            const forceInsertNoon = currentTime && currentTime > "12:00:50" && currentTime < "12:02:00";
+            const forceInsertEvening = currentTime && currentTime > "16:29:50" && currentTime < "16:31:00";
+
+            if (forceInsertNoon || forceInsertEvening) {
+                isDataChanged = true;
+            }
+
             if (isDataChanged) {
                 const nextHistoryId = await redis.incr('next_history_id');
 
