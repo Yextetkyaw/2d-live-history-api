@@ -14,6 +14,15 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.setHeader('Content-Type', 'application/json');
 
+    const { warmup } = req.query;
+    if (warmup === 'true') {
+        console.log("Server Woken Up Successfully By Cron Job!");
+        return res.status(200).json({ 
+            success: true, 
+            message: "Server is now awake and ready!" 
+        });
+    }
+
     // Live Data အတွက် Variable များ တည်ဆောက်ခြင်း
     let timeData = { datetime: null, date: null, time: null };
     let marketStatus = "null";
